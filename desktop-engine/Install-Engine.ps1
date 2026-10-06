@@ -9,7 +9,15 @@ New-Item -ItemType Directory -Force -Path $bin, $models | Out-Null
 
 Write-Host 'Downloading the local Whisper engine...'
 $zip = Join-Path $env:TEMP 'signalscript-whisper.zip'
-Invoke-WebRequest 'https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip' -OutFile $zip
+$headers = @{ 'User-Agent' = 'SignalScript-Engine' }
+$releases = Invoke-RestMethod 'https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20' -Headers $headers
+$asset = $null
+foreach ($release in $releases) {
+  $asset = $release.assets | Where-Object { $_.name -eq 'whisper-bin-x64.zip' } | Select-Object -First 1
+  if ($asset) { break }
+}
+if (-not $asset) { throw 'No Windows x64 engine archive was found in the recent Whisper releases.' }
+Invoke-WebRequest $asset.browser_download_url -Headers $headers -OutFile $zip
 Expand-Archive -Path $zip -DestinationPath $bin -Force
 Remove-Item $zip
 
