@@ -6,6 +6,7 @@ const message = $('#message');
 const transcript = $('#transcript');
 const modelStatus = $('#modelStatus');
 const engineStatus = $('#engineStatus');
+const installGuide = $('#installGuide');
 const ENGINE_URL = 'http://127.0.0.1:8765';
 let displayStream, micStream, audioContext, captureNode, silentGain, timerId, startedAt;
 let systemAnalyser, micAnalyser, meterFrame;
@@ -96,6 +97,8 @@ function stop() {
 }
 
 startButton.addEventListener('click', start); stopButton.addEventListener('click', stop); checkEngine();
+$('#installGuideButton').addEventListener('click', () => installGuide.showModal());
+$('#closeInstallGuide').addEventListener('click', () => installGuide.close());
 $('#clearButton').addEventListener('click', () => { transcript.textContent = ''; });
 $('#copyButton').addEventListener('click', async () => { try { await navigator.clipboard.writeText(transcript.textContent); showMessage('전사 내용을 클립보드에 복사했습니다.'); } catch { showMessage('복사 권한이 필요합니다.'); } });
 $('#downloadButton').addEventListener('click', () => { const file = new Blob([transcript.textContent], { type: 'text/plain;charset=utf-8' }); const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: `전사-${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.txt` }); link.click(); URL.revokeObjectURL(link.href); });
