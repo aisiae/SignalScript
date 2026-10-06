@@ -46,6 +46,6 @@ async function transcribe(audioBuffer) {
     const options = { task: 'transcribe', return_timestamps: false, chunk_length_s: 30, stride_length_s: 1 };
     if (selectedLanguage !== 'auto') options.language = selectedLanguage;
     const output = await asr(audio, options);
-    self.postMessage({ type: 'result', text: output.text });
+    self.postMessage({ type: 'result', text: output.text?.trim() || '' });
   } catch (error) { throw error; }
 }

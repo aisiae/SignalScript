@@ -64,6 +64,9 @@ async function startPcmCapture(systemSource, micSource) {
   silentGain.connect(audioContext.destination);
   captureNode.port.onmessage = ({ data }) => {
     if (data.type === 'pcm') collectPcm(new Float32Array(data.audio));
+    if (data.type === 'quiet') {
+      modelStatus.textContent = '말소리를 기다리고 있습니다. 입력 레벨이 너무 작으면 마이크·시스템 볼륨을 올려 주세요.';
+    }
   };
 }
 
