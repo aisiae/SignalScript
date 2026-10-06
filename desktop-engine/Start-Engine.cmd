@@ -1,25 +1,29 @@
 @echo off
 title SignalScript Engine
 where node >nul 2>&1
-if errorlevel 1 (
-  echo Node.js를 찾지 못했습니다.
-  echo https://nodejs.org 에서 LTS 버전을 설치한 뒤 다시 실행해 주세요.
-  pause
-  exit /b 1
-)
-if not exist "%~dp0bin\whisper-cli.exe" (
-  echo 로컬 전사 엔진이 아직 설치되지 않았습니다.
-  echo 먼저 Install-Engine.cmd를 실행해 주세요.
-  pause
-  exit /b 1
-)
-if not exist "%~dp0models\ggml-small.bin" (
-  echo 한국어 Whisper 모델이 아직 설치되지 않았습니다.
-  echo 먼저 Install-Engine.cmd를 실행해 주세요.
-  pause
-  exit /b 1
-)
+if errorlevel 1 goto no_node
+if not exist "%~dp0bin\whisper-cli.exe" goto no_engine
+if not exist "%~dp0models\ggml-small.bin" goto no_model
 node "%~dp0engine.js"
 echo.
-echo SignalScript Engine이 종료되었습니다.
+echo SignalScript Engine stopped.
 pause
+exit /b
+
+:no_node
+echo Node.js is required before starting SignalScript Engine.
+echo Install the LTS version from https://nodejs.org, then run this file again.
+pause
+exit /b 1
+
+:no_engine
+echo The local engine is not installed yet.
+echo Run Install-Engine.cmd first, then run this file again.
+pause
+exit /b 1
+
+:no_model
+echo The Korean Whisper model is not installed yet.
+echo Run Install-Engine.cmd first, then run this file again.
+pause
+exit /b 1
