@@ -21,5 +21,5 @@ Windows 설치 및 실행 방법은 [desktop-engine/README.md](desktop-engine/RE
 ## 제한 사항
 
 - 브라우저 보안 정책상 매번 시스템 오디오 공유를 사용자가 직접 허용해야 합니다.
-- 첫 설치 때 한국어 Whisper Small 모델(약 466MB)을 PC에 내려받습니다.
+- 첫 설치 때 일반 노트북용 한국어 Whisper Base 모델(약 142MB)을 PC에 내려받습니다.
 - 시스템 오디오 공유는 Chrome/Edge 및 Windows에서 가장 안정적입니다.

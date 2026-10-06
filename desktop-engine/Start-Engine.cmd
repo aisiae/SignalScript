@@ -2,8 +2,8 @@
 title SignalScript Engine
 where node >nul 2>&1
 if errorlevel 1 goto no_node
-if not exist "%~dp0bin\whisper-cli.exe" goto no_engine
-if not exist "%~dp0models\ggml-small.bin" goto no_model
+if not exist "%~dp0bin\whisper-server.exe" goto no_engine
+if not exist "%~dp0models\ggml-base.bin" goto no_model
 node "%~dp0engine.js"
 echo.
 echo SignalScript Engine stopped.

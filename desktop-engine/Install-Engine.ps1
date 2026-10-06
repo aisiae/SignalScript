@@ -21,10 +21,10 @@ Invoke-WebRequest $asset.browser_download_url -Headers $headers -OutFile $zip
 Expand-Archive -Path $zip -DestinationPath $bin -Force
 Remove-Item $zip
 
-$cli = Get-ChildItem -Path $bin -Recurse -Filter 'whisper-cli.exe' | Select-Object -First 1
-if (-not $cli) { throw 'whisper-cli.exe was not found in the downloaded archive.' }
-if ($cli.Directory.FullName -ne $bin) { Copy-Item -Path (Join-Path $cli.Directory.FullName '*') -Destination $bin -Recurse -Force }
+$server = Get-ChildItem -Path $bin -Recurse -Filter 'whisper-server.exe' | Select-Object -First 1
+if (-not $server) { throw 'whisper-server.exe was not found in the downloaded archive.' }
+if ($server.Directory.FullName -ne $bin) { Copy-Item -Path (Join-Path $server.Directory.FullName '*') -Destination $bin -Recurse -Force }
 
-Write-Host 'Downloading the Korean Whisper model (about 466 MB)...'
-Invoke-WebRequest 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin' -OutFile (Join-Path $models 'ggml-small.bin')
+Write-Host 'Downloading the Korean Whisper Base model (about 142 MB)...'
+Invoke-WebRequest 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin' -OutFile (Join-Path $models 'ggml-base.bin')
 Write-Host 'SignalScript Engine installation completed.'

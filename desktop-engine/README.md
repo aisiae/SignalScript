@@ -1,11 +1,11 @@
 # SignalScript Engine
 
-SignalScript 웹앱을 위한 Windows 로컬 전사 엔진입니다. `127.0.0.1`에서만 실행되며 음성이나 전사문을 외부로 전송하지 않습니다.
+SignalScript 웹앱을 위한 Windows 로컬 전사 엔진입니다. `127.0.0.1`에서만 실행되며 음성이나 전사문을 외부로 전송하지 않습니다. 모델은 엔진 시작 때 한 번만 메모리에 올린 뒤 계속 사용합니다.
 
 ## 처음 한 번
 
 1. 압축을 푼 폴더에서 `Install-Engine.cmd`를 두 번 클릭합니다. PowerShell을 직접 열 필요가 없습니다.
-2. 약 466MB의 한국어 Whisper Small 모델을 내려받습니다.
+2. 약 142MB의 한국어 Whisper Base 모델을 내려받습니다. 일반 업무용 노트북을 위한 기본값입니다.
 3. `Start-Engine.cmd`를 실행합니다. 열린 창은 전사하는 동안 그대로 둡니다.
 4. SignalScript Vercel 웹사이트를 열어 “로컬 엔진 연결됨” 상태를 확인합니다.
 
