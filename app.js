@@ -8,7 +8,6 @@ const modelStatus = $('#modelStatus');
 let displayStream, micStream, audioContext, captureNode, silentGain, worker, timerId, startedAt;
 let systemAnalyser, micAnalyser;
 let meterFrame;
-let pcmChunks = [], pcmLength = 0;
 let modelReady = false, workerBusy = false;
 
 function setState(label, type = 'idle') { state.textContent = label; state.className = `state ${type}`; }
@@ -31,7 +30,7 @@ async function start() {
     systemSource.connect(systemAnalyser);
     micSource.connect(micAnalyser);
     createWorker($('#language').value);
-    startPcmCapture(systemSource, micSource);
+    await startPcmCapture(systemSource, micSource);
     displayStream.getVideoTracks()[0].addEventListener('ended', stop);
     startButton.disabled = true; stopButton.disabled = false; setState('모델 준비 중', 'loading'); showMessage('모델이 준비되면 그 시점부터 최신 음성을 전사합니다.');
     startedAt = Date.now(); timerId = setInterval(() => { $('#timer').textContent = formatDuration(Math.floor((Date.now() - startedAt) / 1000)); }, 1000);
@@ -51,34 +50,29 @@ function createWorker(language) {
   worker.postMessage({ type: 'warmup' });
 }
 
-function startPcmCapture(systemSource, micSource) {
-  // WebM 조각은 독립적인 오디오 파일이 아닐 수 있어, 믹싱된 PCM을 바로 사용합니다.
-  captureNode = audioContext.createScriptProcessor(4096, 1, 1);
+async function startPcmCapture(systemSource, micSource) {
+  // AudioWorklet은 메인 UI와 분리된 오디오 스레드에서 신호를 안정적으로 수집합니다.
+  await audioContext.audioWorklet.addModule('./pcm-worklet.js');
+  captureNode = new AudioWorkletNode(audioContext, 'pcm-capture', {
+    numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit',
+  });
   silentGain = audioContext.createGain();
   silentGain.gain.value = 0;
   systemSource.connect(captureNode);
   micSource.connect(captureNode);
   captureNode.connect(silentGain);
   silentGain.connect(audioContext.destination);
-  captureNode.onaudioprocess = ({ inputBuffer }) => collectPcm(inputBuffer.getChannelData(0));
+  captureNode.port.onmessage = ({ data }) => {
+    if (data.type === 'pcm') collectPcm(new Float32Array(data.audio));
+  };
 }
 
 function collectPcm(samples) {
-  pcmChunks.push(samples.slice());
-  pcmLength += samples.length;
-  const chunkSize = Math.round(audioContext.sampleRate * 5);
-  if (pcmLength < chunkSize || !worker) return;
-
-  const joined = new Float32Array(pcmLength);
-  let offset = 0;
-  for (const chunk of pcmChunks) { joined.set(chunk, offset); offset += chunk.length; }
-  pcmChunks = pcmLength > chunkSize ? [joined.slice(chunkSize)] : [];
-  pcmLength -= chunkSize;
-
   // 모델 준비 전 또는 이전 전사 중의 오래된 구간은 건너뛰어 지연이 누적되지 않게 합니다.
   if (!modelReady || workerBusy) return;
-  const audio = downsampleTo16k(joined.subarray(0, chunkSize), audioContext.sampleRate);
+  const audio = downsampleTo16k(samples, audioContext.sampleRate);
   workerBusy = true;
+  modelStatus.textContent = '방금 들린 음성을 전사하고 있습니다…';
   worker.postMessage({ type: 'transcribe', audio: audio.buffer }, [audio.buffer]);
 }
 
@@ -112,7 +106,6 @@ function stop() {
   clearInterval(timerId); $('#systemMeter').style.width = $('#micMeter').style.width = '0';
   cancelAnimationFrame(meterFrame);
   displayStream = micStream = audioContext = captureNode = silentGain = worker = systemAnalyser = micAnalyser = null;
-  pcmChunks = []; pcmLength = 0;
   modelReady = false; workerBusy = false;
   startButton.disabled = false; stopButton.disabled = true; setState('준비됨'); modelStatus.textContent = '시작하면 로컬 AI 모델을 준비합니다.';
 }
