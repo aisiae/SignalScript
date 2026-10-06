@@ -1,4 +1,6 @@
 $ErrorActionPreference = 'Stop'
+$node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $node) { throw 'Node.js 20 이상이 필요합니다. https://nodejs.org 에서 LTS 버전을 설치한 뒤 Install-Engine.cmd를 다시 실행해 주세요.' }
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bin = Join-Path $root 'bin'
 $models = Join-Path $root 'models'
