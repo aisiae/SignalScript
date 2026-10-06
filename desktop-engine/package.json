@@ -1,0 +1,15 @@
+{
+  "name": "signalscript-engine",
+  "version": "0.1.0",
+  "private": true,
+  "bin": "engine.js",
+  "scripts": {
+    "build": "pkg engine.js --targets node20-win-x64 --output dist/SignalScript-Engine.exe"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.2.0"
+  },
+  "pkg": {
+    "assets": ["README.md", "Start-Engine.cmd", "Install-Engine.ps1"]
+  }
+}

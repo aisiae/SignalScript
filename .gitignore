@@ -1,2 +1,7 @@
 .DS_Store
+desktop-engine/bin/
+desktop-engine/models/
+desktop-engine/node_modules/
+desktop-engine/.pkg-cache/
+desktop-engine/dist/
 
