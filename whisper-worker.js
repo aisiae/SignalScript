@@ -2,18 +2,22 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 
 env.allowLocalModels = false;
 let transcriber;
+let transcriberPromise;
 let selectedLanguage = 'korean';
 
 async function getTranscriber() {
   if (transcriber) return transcriber;
-  self.postMessage({ type: 'status', loading: true, text: 'Whisper 모델을 처음 준비하고 있습니다. 잠시만 기다려 주세요.' });
-  transcriber = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-small', {
-    dtype: 'q8',
-    device: 'wasm',
-    progress_callback: (progress) => {
-      if (progress.status === 'progress') self.postMessage({ type: 'status', loading: true, text: `모델 준비 중… ${Math.round(progress.progress || 0)}%` });
-    },
-  });
+  if (!transcriberPromise) {
+    self.postMessage({ type: 'status', loading: true, text: 'Whisper 모델을 처음 준비하고 있습니다. 잠시만 기다려 주세요.' });
+    transcriberPromise = pipeline('automatic-speech-recognition', 'onnx-community/whisper-small', {
+      dtype: 'q8',
+      device: 'wasm',
+      progress_callback: (progress) => {
+        if (progress.status === 'progress') self.postMessage({ type: 'status', loading: true, text: `모델 준비 중… ${Math.round(progress.progress || 0)}%` });
+      },
+    });
+  }
+  transcriber = await transcriberPromise;
   return transcriber;
 }
 
@@ -26,14 +30,22 @@ async function decodeAudio(buffer) {
   return (await resampler.startRendering()).getChannelData(0);
 }
 
-self.onmessage = async ({ data }) => {
+let queue = Promise.resolve();
+
+self.onmessage = ({ data }) => {
   if (data.type === 'configure') { selectedLanguage = data.language; return; }
   if (data.type !== 'transcribe') return;
+  queue = queue.then(() => transcribe(data.audio)).catch((error) => {
+    self.postMessage({ type: 'error', message: `전사에 실패했습니다: ${error.message}` });
+  });
+};
+
+async function transcribe(audioBuffer) {
   try {
-    const [asr, audio] = await Promise.all([getTranscriber(), decodeAudio(data.audio)]);
+    const [asr, audio] = await Promise.all([getTranscriber(), decodeAudio(audioBuffer)]);
     const options = { task: 'transcribe', return_timestamps: false, chunk_length_s: 30, stride_length_s: 1 };
     if (selectedLanguage !== 'auto') options.language = selectedLanguage;
     const output = await asr(audio, options);
     self.postMessage({ type: 'result', text: output.text });
-  } catch (error) { self.postMessage({ type: 'error', message: `전사에 실패했습니다: ${error.message}` }); }
-};
+  } catch (error) { throw error; }
+}
