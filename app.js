@@ -9,6 +9,7 @@ let displayStream, micStream, audioContext, captureNode, silentGain, worker, tim
 let systemAnalyser, micAnalyser;
 let meterFrame;
 let pcmChunks = [], pcmLength = 0;
+let modelReady = false, workerBusy = false;
 
 function setState(label, type = 'idle') { state.textContent = label; state.className = `state ${type}`; }
 function showMessage(text = '') { message.textContent = text; }
@@ -32,7 +33,7 @@ async function start() {
     createWorker($('#language').value);
     startPcmCapture(systemSource, micSource);
     displayStream.getVideoTracks()[0].addEventListener('ended', stop);
-    startButton.disabled = true; stopButton.disabled = false; setState('전사 중', 'active'); showMessage('');
+    startButton.disabled = true; stopButton.disabled = false; setState('모델 준비 중', 'loading'); showMessage('모델이 준비되면 그 시점부터 최신 음성을 전사합니다.');
     startedAt = Date.now(); timerId = setInterval(() => { $('#timer').textContent = formatDuration(Math.floor((Date.now() - startedAt) / 1000)); }, 1000);
     drawMeters();
   } catch (error) { showMessage(error.message || '오디오 연결에 실패했습니다. 권한과 공유 옵션을 확인해 주세요.'); stop(); }
@@ -42,10 +43,12 @@ function createWorker(language) {
   worker = new Worker('./whisper-worker.js', { type: 'module' });
   worker.onmessage = ({ data }) => {
     if (data.type === 'status') { modelStatus.textContent = data.text; if (data.loading) setState('모델 준비 중', 'loading'); }
-    if (data.type === 'result') { appendText(data.text); modelStatus.textContent = '로컬 AI가 전사 중입니다.'; setState('전사 중', 'active'); }
-    if (data.type === 'error') { showMessage(data.message); modelStatus.textContent = '전사 엔진 오류'; }
+    if (data.type === 'ready') { modelReady = true; modelStatus.textContent = data.text; setState('전사 중', 'active'); showMessage(''); }
+    if (data.type === 'result') { workerBusy = false; appendText(data.text); modelStatus.textContent = '로컬 AI가 전사 중입니다.'; setState('전사 중', 'active'); }
+    if (data.type === 'error') { workerBusy = false; showMessage(data.message); modelStatus.textContent = '전사 엔진 오류'; }
   };
   worker.postMessage({ type: 'configure', language });
+  worker.postMessage({ type: 'warmup' });
 }
 
 function startPcmCapture(systemSource, micSource) {
@@ -72,7 +75,10 @@ function collectPcm(samples) {
   pcmChunks = pcmLength > chunkSize ? [joined.slice(chunkSize)] : [];
   pcmLength -= chunkSize;
 
+  // 모델 준비 전 또는 이전 전사 중의 오래된 구간은 건너뛰어 지연이 누적되지 않게 합니다.
+  if (!modelReady || workerBusy) return;
   const audio = downsampleTo16k(joined.subarray(0, chunkSize), audioContext.sampleRate);
+  workerBusy = true;
   worker.postMessage({ type: 'transcribe', audio: audio.buffer }, [audio.buffer]);
 }
 
@@ -107,6 +113,7 @@ function stop() {
   cancelAnimationFrame(meterFrame);
   displayStream = micStream = audioContext = captureNode = silentGain = worker = systemAnalyser = micAnalyser = null;
   pcmChunks = []; pcmLength = 0;
+  modelReady = false; workerBusy = false;
   startButton.disabled = false; stopButton.disabled = true; setState('준비됨'); modelStatus.textContent = '시작하면 로컬 AI 모델을 준비합니다.';
 }
 
