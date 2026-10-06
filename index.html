@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="description" content="시스템 오디오와 마이크를 함께 전사하는 로컬 실시간 전사 도구" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1220'/%3E%3Cpath d='M20 29a12 12 0 0 0 24 0v-9a12 12 0 0 0-24 0v9Zm-5-2v2a17 17 0 0 0 14 16v8h-8v5h22v-5h-8v-8a17 17 0 0 0 14-16v-2h-5v2a12 12 0 0 1-24 0v-2h-5Z' fill='%236ee7b7'/%3E%3C/svg%3E" />
+    <title>SignalScript · 로컬 실시간 전사</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SIGNALSCRIPT · LOCAL WHISPER</p>
+          <h1>SignalScript</h1>
+        </div>
+        <div id="state" class="state idle" role="status">준비됨</div>
+      </header>
+
+      <section class="setup-card" aria-labelledby="connect-title">
+        <div class="setup-copy">
+          <h2 id="connect-title">전사할 소리를 연결하세요</h2>
+          <p>시스템 오디오와 마이크를 한 번에 받아, 이 브라우저 안에서 텍스트로 변환합니다.</p>
+        </div>
+        <div class="actions">
+          <label class="language-select" for="language">인식 언어
+            <select id="language">
+              <option value="korean" selected>한국어 우선</option>
+              <option value="auto">자동 감지</option>
+            </select>
+          </label>
+          <button id="startButton" class="primary">연결하고 시작</button>
+          <button id="stopButton" class="secondary" disabled>중지</button>
+        </div>
+        <ol class="steps">
+          <li>공유 창에서 <strong>전체 화면</strong>을 선택합니다.</li>
+          <li><strong>시스템 오디오 공유</strong>를 꼭 켭니다.</li>
+          <li>이후 마이크 권한을 허용합니다.</li>
+        </ol>
+        <p id="message" class="message" role="alert"></p>
+      </section>
+
+      <section class="workspace" aria-label="전사 작업 영역">
+        <div class="meter-card">
+          <div class="section-heading">
+            <h2>입력 상태</h2>
+            <span id="timer">00:00</span>
+          </div>
+          <div class="meter-row"><span>시스템</span><div class="meter"><i id="systemMeter"></i></div></div>
+          <div class="meter-row"><span>마이크</span><div class="meter"><i id="micMeter"></i></div></div>
+          <p class="helper">두 막대가 움직이면 두 소리가 모두 전사 입력에 포함됩니다.</p>
+        </div>
+
+        <div class="transcript-card">
+          <div class="section-heading transcript-heading">
+            <div>
+              <h2>전사 내용</h2>
+              <p id="modelStatus">시작하면 로컬 AI 모델을 준비합니다.</p>
+            </div>
+            <div class="transcript-actions">
+              <button id="copyButton" class="text-button">복사</button>
+              <button id="downloadButton" class="text-button">TXT 저장</button>
+              <button id="clearButton" class="text-button danger">비우기</button>
+            </div>
+          </div>
+          <div id="transcript" class="transcript" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="전사 내용이 여기에 표시됩니다."></div>
+        </div>
+      </section>
+
+        <p class="privacy-note">음성과 전사문은 서버로 전송하거나 저장하지 않습니다. 첫 실행 시에만 Whisper 모델 파일을 내려받고, 이후에는 브라우저 캐시를 사용합니다.</p>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
