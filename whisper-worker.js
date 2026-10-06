@@ -21,15 +21,6 @@ async function getTranscriber() {
   return transcriber;
 }
 
-async function decodeAudio(buffer) {
-  const context = new OfflineAudioContext(1, 1, 16000);
-  const decoded = await context.decodeAudioData(buffer);
-  const targetLength = Math.ceil(decoded.duration * 16000);
-  const resampler = new OfflineAudioContext(1, targetLength, 16000);
-  const source = resampler.createBufferSource(); source.buffer = decoded; source.connect(resampler.destination); source.start();
-  return (await resampler.startRendering()).getChannelData(0);
-}
-
 let queue = Promise.resolve();
 
 self.onmessage = ({ data }) => {
@@ -42,7 +33,8 @@ self.onmessage = ({ data }) => {
 
 async function transcribe(audioBuffer) {
   try {
-    const [asr, audio] = await Promise.all([getTranscriber(), decodeAudio(audioBuffer)]);
+    const asr = await getTranscriber();
+    const audio = new Float32Array(audioBuffer);
     const options = { task: 'transcribe', return_timestamps: false, chunk_length_s: 30, stride_length_s: 1 };
     if (selectedLanguage !== 'auto') options.language = selectedLanguage;
     const output = await asr(audio, options);

@@ -31,7 +31,16 @@ async function start() {
     micSource.connect(micAnalyser); micSource.connect(destination);
     createWorker($('#language').value);
     recorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 64000 });
-    recorder.ondataavailable = async (event) => { if (!event.data.size || !worker) return; const buffer = await event.data.arrayBuffer(); worker.postMessage({ type: 'transcribe', audio: buffer }, [buffer]); };
+    recorder.ondataavailable = async (event) => {
+      if (!event.data.size || !worker) return;
+      try {
+        const audio = await decodeAndResample(await event.data.arrayBuffer());
+        const activeWorker = worker;
+        if (activeWorker) activeWorker.postMessage({ type: 'transcribe', audio }, [audio.buffer]);
+      } catch (error) {
+        showMessage(`오디오 조각을 준비하지 못했습니다: ${error.message}`);
+      }
+    };
     // 짧은 조각으로 보내 처리 지연을 줄입니다. 각 조각은 탭 안에서만 처리됩니다.
     recorder.start(5000);
     displayStream.getVideoTracks()[0].addEventListener('ended', stop);
@@ -49,6 +58,19 @@ function createWorker(language) {
     if (data.type === 'error') { showMessage(data.message); modelStatus.textContent = '전사 엔진 오류'; }
   };
   worker.postMessage({ type: 'configure', language });
+}
+
+// Web Worker에서는 OfflineAudioContext를 지원하지 않는 브라우저가 있어,
+// WebM 해독과 16 kHz 변환은 창 컨텍스트에서 수행합니다.
+async function decodeAndResample(buffer) {
+  const decoded = await audioContext.decodeAudioData(buffer.slice(0));
+  const targetLength = Math.ceil(decoded.duration * 16000);
+  const resampler = new OfflineAudioContext(1, targetLength, 16000);
+  const source = resampler.createBufferSource();
+  source.buffer = decoded;
+  source.connect(resampler.destination);
+  source.start();
+  return (await resampler.startRendering()).getChannelData(0).slice();
 }
 
 function drawMeters() {
