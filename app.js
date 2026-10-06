@@ -5,9 +5,10 @@ const state = $('#state');
 const message = $('#message');
 const transcript = $('#transcript');
 const modelStatus = $('#modelStatus');
-let displayStream, micStream, audioContext, recorder, worker, timerId, startedAt;
+let displayStream, micStream, audioContext, captureNode, silentGain, worker, timerId, startedAt;
 let systemAnalyser, micAnalyser;
 let meterFrame;
+let pcmChunks = [], pcmLength = 0;
 
 function setState(label, type = 'idle') { state.textContent = label; state.className = `state ${type}`; }
 function showMessage(text = '') { message.textContent = text; }
@@ -22,27 +23,14 @@ async function start() {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
 
     audioContext = new AudioContext();
-    const destination = audioContext.createMediaStreamDestination();
     const systemSource = audioContext.createMediaStreamSource(displayStream);
     const micSource = audioContext.createMediaStreamSource(micStream);
     systemAnalyser = audioContext.createAnalyser(); micAnalyser = audioContext.createAnalyser();
     systemAnalyser.fftSize = micAnalyser.fftSize = 256;
-    systemSource.connect(systemAnalyser); systemAnalyser.connect(destination);
-    micSource.connect(micAnalyser); micSource.connect(destination);
+    systemSource.connect(systemAnalyser);
+    micSource.connect(micAnalyser);
     createWorker($('#language').value);
-    recorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 64000 });
-    recorder.ondataavailable = async (event) => {
-      if (!event.data.size || !worker) return;
-      try {
-        const audio = await decodeAndResample(await event.data.arrayBuffer());
-        const activeWorker = worker;
-        if (activeWorker) activeWorker.postMessage({ type: 'transcribe', audio }, [audio.buffer]);
-      } catch (error) {
-        showMessage(`오디오 조각을 준비하지 못했습니다: ${error.message}`);
-      }
-    };
-    // 짧은 조각으로 보내 처리 지연을 줄입니다. 각 조각은 탭 안에서만 처리됩니다.
-    recorder.start(5000);
+    startPcmCapture(systemSource, micSource);
     displayStream.getVideoTracks()[0].addEventListener('ended', stop);
     startButton.disabled = true; stopButton.disabled = false; setState('전사 중', 'active'); showMessage('');
     startedAt = Date.now(); timerId = setInterval(() => { $('#timer').textContent = formatDuration(Math.floor((Date.now() - startedAt) / 1000)); }, 1000);
@@ -60,17 +48,46 @@ function createWorker(language) {
   worker.postMessage({ type: 'configure', language });
 }
 
-// Web Worker에서는 OfflineAudioContext를 지원하지 않는 브라우저가 있어,
-// WebM 해독과 16 kHz 변환은 창 컨텍스트에서 수행합니다.
-async function decodeAndResample(buffer) {
-  const decoded = await audioContext.decodeAudioData(buffer.slice(0));
-  const targetLength = Math.ceil(decoded.duration * 16000);
-  const resampler = new OfflineAudioContext(1, targetLength, 16000);
-  const source = resampler.createBufferSource();
-  source.buffer = decoded;
-  source.connect(resampler.destination);
-  source.start();
-  return (await resampler.startRendering()).getChannelData(0).slice();
+function startPcmCapture(systemSource, micSource) {
+  // WebM 조각은 독립적인 오디오 파일이 아닐 수 있어, 믹싱된 PCM을 바로 사용합니다.
+  captureNode = audioContext.createScriptProcessor(4096, 1, 1);
+  silentGain = audioContext.createGain();
+  silentGain.gain.value = 0;
+  systemSource.connect(captureNode);
+  micSource.connect(captureNode);
+  captureNode.connect(silentGain);
+  silentGain.connect(audioContext.destination);
+  captureNode.onaudioprocess = ({ inputBuffer }) => collectPcm(inputBuffer.getChannelData(0));
+}
+
+function collectPcm(samples) {
+  pcmChunks.push(samples.slice());
+  pcmLength += samples.length;
+  const chunkSize = Math.round(audioContext.sampleRate * 5);
+  if (pcmLength < chunkSize || !worker) return;
+
+  const joined = new Float32Array(pcmLength);
+  let offset = 0;
+  for (const chunk of pcmChunks) { joined.set(chunk, offset); offset += chunk.length; }
+  pcmChunks = pcmLength > chunkSize ? [joined.slice(chunkSize)] : [];
+  pcmLength -= chunkSize;
+
+  const audio = downsampleTo16k(joined.subarray(0, chunkSize), audioContext.sampleRate);
+  worker.postMessage({ type: 'transcribe', audio: audio.buffer }, [audio.buffer]);
+}
+
+function downsampleTo16k(input, sourceRate) {
+  if (sourceRate === 16000) return input.slice();
+  const ratio = sourceRate / 16000;
+  const output = new Float32Array(Math.round(input.length / ratio));
+  for (let index = 0; index < output.length; index += 1) {
+    const start = Math.floor(index * ratio);
+    const end = Math.min(input.length, Math.floor((index + 1) * ratio));
+    let sum = 0;
+    for (let sample = start; sample < end; sample += 1) sum += input[sample];
+    output[index] = sum / Math.max(1, end - start);
+  }
+  return output;
 }
 
 function drawMeters() {
@@ -84,11 +101,12 @@ function drawMeters() {
 }
 
 function stop() {
-  recorder?.state !== 'inactive' && recorder.stop();
+  captureNode?.disconnect(); silentGain?.disconnect();
   displayStream?.getTracks().forEach((track) => track.stop()); micStream?.getTracks().forEach((track) => track.stop()); audioContext?.close(); worker?.terminate();
   clearInterval(timerId); $('#systemMeter').style.width = $('#micMeter').style.width = '0';
   cancelAnimationFrame(meterFrame);
-  displayStream = micStream = audioContext = recorder = worker = systemAnalyser = micAnalyser = null;
+  displayStream = micStream = audioContext = captureNode = silentGain = worker = systemAnalyser = micAnalyser = null;
+  pcmChunks = []; pcmLength = 0;
   startButton.disabled = false; stopButton.disabled = true; setState('준비됨'); modelStatus.textContent = '시작하면 로컬 AI 모델을 준비합니다.';
 }
 
