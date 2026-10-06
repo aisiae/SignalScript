@@ -25,7 +25,7 @@ async function checkEngine() {
     return engineReady;
   } catch {
     engineReady = false;
-    engineStatus.innerHTML = '로컬 엔진이 실행되지 않았습니다. <a href="desktop-engine/README.md" target="_blank">설치 및 실행 안내</a>';
+    engineStatus.textContent = '로컬 엔진이 실행되지 않았습니다. 아래에서 내려받아 설치한 뒤 실행해 주세요.';
     return false;
   }
 }
