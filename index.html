@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1220" />
-    <meta name="description" content="시스템 오디오와 마이크를 함께 전사하는 로컬 실시간 전사 도구" />
+    <meta name="description" content="Windows 라이브 캡션의 자막을 복사 가능한 텍스트로 받는 실시간 전사 도구" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1220'/%3E%3Cpath d='M20 29a12 12 0 0 0 24 0v-9a12 12 0 0 0-24 0v9Zm-5-2v2a17 17 0 0 0 14 16v8h-8v5h22v-5h-8v-8a17 17 0 0 0 14-16v-2h-5v2a12 12 0 0 1-24 0v-2h-5Z' fill='%236ee7b7'/%3E%3C/svg%3E" />
     <title>SignalScript · 로컬 실시간 전사</title>
     <link rel="stylesheet" href="style.css" />
@@ -13,7 +13,7 @@
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">SIGNALSCRIPT · LOCAL WHISPER</p>
+          <p class="eyebrow">SIGNALSCRIPT · WINDOWS LIVE CAPTIONS</p>
           <h1>SignalScript</h1>
         </div>
         <div id="state" class="state idle" role="status">준비됨</div>
@@ -21,23 +21,17 @@
 
       <section class="setup-card" aria-labelledby="connect-title">
         <div class="setup-copy">
-          <h2 id="connect-title">전사할 소리를 연결하세요</h2>
-          <p>시스템 오디오와 마이크를 한 번에 받아, 이 PC에 설치된 SignalScript Engine으로 전사합니다.</p>
+          <h2 id="connect-title">라이브 캡션 자막을 가져옵니다</h2>
+          <p>Windows 11의 라이브 캡션이 만든 자막을 SignalScript Engine이 읽어 이 화면에 복사 가능한 텍스트로 보여줍니다.</p>
         </div>
         <div class="actions">
-          <label class="language-select" for="language">인식 언어
-            <select id="language">
-              <option value="korean" selected>한국어 우선</option>
-              <option value="auto">자동 감지</option>
-            </select>
-          </label>
-          <button id="startButton" class="primary">연결하고 시작</button>
+          <button id="startButton" class="primary">전사 시작</button>
           <button id="stopButton" class="secondary" disabled>중지</button>
         </div>
         <ol class="steps">
-          <li>공유 창에서 <strong>전체 화면</strong>을 선택합니다.</li>
-          <li><strong>시스템 오디오 공유</strong>를 꼭 켭니다.</li>
-          <li>이후 마이크 권한을 허용합니다.</li>
+          <li>Start-Engine.cmd를 실행합니다. 라이브 캡션이 자동으로 켜집니다.</li>
+          <li>라이브 캡션 설정(⚙)에서 언어를 <strong>한국어</strong>, <strong>마이크 오디오 포함</strong>을 켭니다.</li>
+          <li>이 화면에서 <strong>전사 시작</strong>을 누릅니다.</li>
         </ol>
         <p id="message" class="message" role="alert"></p>
         <p id="engineStatus" class="engine-status">로컬 엔진 연결을 확인하고 있습니다…</p>
@@ -53,29 +47,18 @@
         <ol>
           <li><a href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js LTS 설치 페이지</a>를 열어 LTS 버전을 설치합니다.</li>
           <li><strong>Windows용 로컬 엔진 다운로드</strong>를 눌러 압축을 푼 뒤 폴더를 엽니다.</li>
-          <li><strong>Install-Engine.cmd</strong>를 두 번 클릭하고, 설치가 끝날 때까지 기다립니다.</li>
           <li><strong>Start-Engine.cmd</strong>를 두 번 클릭합니다. 열린 창은 전사 중에 닫지 마세요.</li>
           <li>이 사이트를 새로고침해 <strong>“로컬 엔진 연결됨”</strong>을 확인합니다.</li>
         </ol>
-        <p class="install-note">최초 설치 때 일반 노트북용 한국어 전사 모델 약 142MB를 이 PC에 내려받습니다. 음성·전사문은 외부로 전송되지 않습니다.</p>
+        <p class="install-note">Windows 11 라이브 캡션(한국어 지원)이 필요합니다. 별도 모델 다운로드는 없고, 전사문은 외부로 전송되지 않습니다.</p>
       </dialog>
 
       <section class="workspace" aria-label="전사 작업 영역">
-        <div class="meter-card">
-          <div class="section-heading">
-            <h2>입력 상태</h2>
-            <span id="timer">00:00</span>
-          </div>
-          <div class="meter-row"><span>시스템</span><div class="meter"><i id="systemMeter"></i></div></div>
-          <div class="meter-row"><span>마이크</span><div class="meter"><i id="micMeter"></i></div></div>
-          <p class="helper">두 막대가 움직이면 두 소리가 모두 전사 입력에 포함됩니다.</p>
-        </div>
-
         <div class="transcript-card">
           <div class="section-heading transcript-heading">
             <div>
               <h2>전사 내용</h2>
-              <p id="modelStatus">시작하면 로컬 AI 모델을 준비합니다.</p>
+              <p id="modelStatus">시작하면 라이브 캡션의 자막을 가져옵니다.</p>
             </div>
             <div class="transcript-actions">
               <button id="copyButton" class="text-button">복사</button>
@@ -84,10 +67,11 @@
             </div>
           </div>
           <div id="transcript" class="transcript" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="전사 내용이 여기에 표시됩니다."></div>
+          <div id="live" class="transcript live" aria-live="polite"></div>
         </div>
       </section>
 
-      <p class="privacy-note">음성과 전사문은 서버로 전송하거나 저장하지 않습니다. 모델은 설치한 PC에만 저장됩니다.</p>
+      <p class="privacy-note">전사문은 서버로 전송하거나 저장하지 않습니다.</p>
     </main>
     <script type="module" src="app.js"></script>
   </body>

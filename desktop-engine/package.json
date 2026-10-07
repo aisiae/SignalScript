@@ -10,6 +10,6 @@
     "@yao-pkg/pkg": "^6.2.0"
   },
   "pkg": {
-    "assets": ["README.md", "Start-Engine.cmd", "Install-Engine.ps1"]
+    "assets": ["README.md", "Start-Engine.cmd", "captions-reader.ps1"]
   }
 }
