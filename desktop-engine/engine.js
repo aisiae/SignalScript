@@ -1,4 +1,4 @@
-const http = require('node:http');
+﻿const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -24,7 +24,7 @@ function allowedOrigin(origin = '') {
 function cors(request, response) {
   const origin = request.headers.origin || '';
   if (allowedOrigin(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
-  response.setHeader('Vary', 'Origin'); response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Vary', 'Origin'); response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); response.setHeader('Access-Control-Allow-Headers', 'Content-Type'); response.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 function json(response, status, payload) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(payload)); }
 function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -33,7 +33,7 @@ async function startWhisperServer() {
   if (!fs.existsSync(serverExe)) throw new Error('whisper-server.exe is missing. Run Install-Engine.cmd again.');
   if (!fs.existsSync(model)) throw new Error('The Korean Whisper Base model is missing. Run Install-Engine.cmd again.');
   const threads = String(Math.max(2, Math.min(4, os.cpus().length - 1)));
-  whisperServer = spawn(serverExe, ['-m', model, '--host', '127.0.0.1', '--port', '8178', '-t', threads, '-sns', '-nc', '-nth', '0.65'], { windowsHide: true });
+  whisperServer = spawn(serverExe, ['-m', path.relative(root, model), '--host', '127.0.0.1', '--port', '8178', '-t', threads, '-sns', '-mc', '0', '-nth', '0.65'], { windowsHide: true, cwd: root });
   whisperServer.stderr.on('data', (data) => process.stderr.write(data));
   whisperServer.on('error', (error) => { engineState = 'error'; engineError = error.message; });
   whisperServer.on('exit', (code) => { if (engineState !== 'stopping') { engineState = 'error'; engineError = `Whisper server exited (${code}).`; } });

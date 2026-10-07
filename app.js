@@ -10,7 +10,7 @@ const installGuide = $('#installGuide');
 const ENGINE_URL = 'http://127.0.0.1:8765';
 let displayStream, micStream, audioContext, captureNode, silentGain, timerId, startedAt;
 let systemAnalyser, micAnalyser, meterFrame;
-let engineBusy = false, engineReady = false;
+let engineBusy = false, engineReady = false, pendingSamples = null;
 
 function setState(label, type = 'idle') { state.textContent = label; state.className = `state ${type}`; }
 function showMessage(text = '') { message.textContent = text; }
@@ -66,7 +66,7 @@ async function startPcmCapture(systemSource, micSource) {
 }
 
 async function transcribe(samples) {
-  if (engineBusy) return;
+  if (engineBusy) { pendingSamples = samples; return; }
   engineBusy = true; modelStatus.textContent = '방금 들린 음성을 로컬 엔진에서 전사하고 있습니다…';
   try {
     const language = $('#language').value === 'auto' ? 'auto' : 'ko';
@@ -75,7 +75,7 @@ async function transcribe(samples) {
     if (!response.ok) throw new Error(data.error || '로컬 엔진 전사에 실패했습니다.');
     appendText(data.text); modelStatus.textContent = '로컬 엔진이 전사 중입니다.';
   } catch (error) { showMessage(error.message); modelStatus.textContent = '로컬 엔진 연결 오류'; }
-  finally { engineBusy = false; }
+  finally { engineBusy = false; if (pendingSamples && audioContext) { const next = pendingSamples; pendingSamples = null; transcribe(next); } }
 }
 
 function drawMeters() {
@@ -93,7 +93,7 @@ function stop() {
   displayStream?.getTracks().forEach((track) => track.stop()); micStream?.getTracks().forEach((track) => track.stop()); audioContext?.close();
   clearInterval(timerId); cancelAnimationFrame(meterFrame); $('#systemMeter').style.width = $('#micMeter').style.width = '0';
   displayStream = micStream = audioContext = captureNode = silentGain = systemAnalyser = micAnalyser = null;
-  engineBusy = false; startButton.disabled = false; stopButton.disabled = true; setState('준비됨'); modelStatus.textContent = '로컬 엔진 연결을 확인한 뒤 시작합니다.';
+  engineBusy = false; pendingSamples = null; startButton.disabled = false; stopButton.disabled = true; setState('준비됨'); modelStatus.textContent = '로컬 엔진 연결을 확인한 뒤 시작합니다.';
 }
 
 startButton.addEventListener('click', start); stopButton.addEventListener('click', stop); checkEngine();
